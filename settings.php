@@ -12,7 +12,7 @@
                 <tbody>
                     <tr>
                         <th>
-                            <h2>Site <?php echo $i ?></h2>
+                            <h2>Domínio <?php echo $i ?></h2>
                         </th>
                     </tr>
                     <tr>

@@ -14,11 +14,15 @@ class HG_Cloudflare {
     function __construct() {
 
         if ( is_admin() ) {
-            $clean_cache = isset($_GET['hg_clean_cache']) ? $_GET['hg_clean_cache'] : 0;
-            if ($clean_cache == 1) {
-                $this->clean_cache();
-            }
+            // Limpeza cache manualmente quando solicitado
+            add_action( 'admin_init', function() {
+                $clean_cache = isset($_GET['hg_clean_cache']) ? $_GET['hg_clean_cache'] : 0;
+                if ($clean_cache == 1) {
+                    $this->clean_cache();
+                }
+            });
 
+            // Adicionar botão no admin bar
             add_action( 'admin_bar_menu', [$this, 'add_adminbar'], 999 );
 
             // Limpar cache do CloudFlare depois de salvar qualquer CPT
@@ -27,6 +31,9 @@ class HG_Cloudflare {
             // Abrir e salvar opcoes
             add_action( 'admin_menu', [$this, 'admin_menu']);
             add_action( 'admin_init', [$this, 'save_settings']);
+
+            // Adicionar conteúdo ao rodapé do painel de administração
+            add_action( 'admin_footer', [$this, 'show_message'] );
         }
     }
 
@@ -49,20 +56,13 @@ class HG_Cloudflare {
     }
 
     function clean_cache() {
-        global $cloudflare_msg;
+        $cloudflare_msg = new stdClass();
 
         $configs = $this->get_options();
 
-        if (!$configs) {
-            $cloudflare_msg = (object) [
-                'success' => false,
-                'errors' => [
-                    (object) [
-                        'message' => 'Os dados de API do CloudFlare não foram configurados!'
-                    ]
-                ]
-            ];
-            add_action('admin_notices', [$this, 'admin_notice']);
+        if (empty($configs) || $configs->zone_id_1 == '' || $configs->api_token_1 == '') {
+            $cloudflare_msg->error = 'Os dados de API não foram configurados!';
+            $_SESSION['cloudflare_msg'] = $cloudflare_msg;
             return;
         }
 
@@ -82,9 +82,19 @@ class HG_Cloudflare {
             }
         }
 
-        $cloudflare_msg = $res;
+        if ($res->success) {
+            $cloudflare_msg->success = 'O cache foi limpo com sucesso!';
+            $_SESSION['cloudflare_msg'] = $cloudflare_msg;
+        
+        } else {
+            $msg = '';
+            foreach ($res->errors as $reg) {
+                $msg .= ' '.$reg->message;
+            }
 
-        add_action('admin_notices', [$this, 'admin_notice']);
+            $cloudflare_msg->error = 'Houve um erro ao limpar o cache! Mensagem da API: '.trim($msg);
+            $_SESSION['cloudflare_msg'] = $cloudflare_msg;
+        }
     }
 
     function consult_rest($zone_id, $api_token) {
@@ -110,22 +120,49 @@ class HG_Cloudflare {
         return $res;
     }
 
-    function admin_notice() {
-        global $cloudflare_msg;
-        
-        if ($cloudflare_msg->success) {
-            echo '<div class="notice notice-success is-dismissible">
-                <p>O cache do CloudFlare foi limpo com sucesso!</p>
-            </div>';
-        
-        } else {
-            $msg = '';
-            foreach ($cloudflare_msg->errors as $reg) {
-                $msg .= ' '.$reg->message;
-            }
+    function show_message() {
+        $cloudflare_msg = isset($_SESSION['cloudflare_msg']) ? $_SESSION['cloudflare_msg'] : null;
+        unset($_SESSION['cloudflare_msg']);
 
-            echo '<div class="notice notice-error is-dismissible">
-                <p>Houve um erro ao limpar o cache do CloudFlare! Mensagem da API: '.trim($msg).'</p>
+        if (!isset($cloudflare_msg)) {
+            return;
+        }
+
+        ?>
+        <style>
+            .hgcloudflare_msg {
+                padding: 0 15px;
+                margin: 10px !important;
+                border-radius: 5px;
+                position: fixed;
+                z-index: 10000;
+                bottom: 0;
+                right: 0;
+            }
+            .hgcloudflare_success {
+                background-color: #d4edda;
+                color: #155724;
+            }
+            .hgcloudflare_error {
+                background-color: #f8d7da;
+                color: #721c24;
+            }
+        </style>
+        <script>
+            setTimeout(function() {
+                document.querySelector('.hgcloudflare_msg').style.display = 'none';
+            }, 5000);
+        </script>
+        <?php
+
+        if (isset($cloudflare_msg->success)) {
+            echo '<div class="hgcloudflare_msg hgcloudflare_success">
+                <p>✅ <strong>[ CLOUDFLARE ]</strong> '.$cloudflare_msg->success.'</p>
+            </div>';
+
+        } else {
+            echo '<div class="hgcloudflare_msg hgcloudflare_error">
+                <p>❌ <strong>[ CLOUDFLARE ]</strong> '.$cloudflare_msg->error.'</p>
             </div>';
         }
     }
