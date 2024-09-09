@@ -26,7 +26,24 @@ class HG_Cloudflare {
             add_action( 'admin_bar_menu', [$this, 'add_adminbar'], 999 );
 
             // Limpar cache do CloudFlare depois de salvar qualquer CPT
-            add_action( 'save_post', [$this, 'clean_cache'] );
+            add_action( 'save_post', function($post_id) {
+                // Verificar se é um auto-salvamento
+                if (wp_is_post_autosave($post_id)) {
+                    return;
+                }
+
+                // Verificar se o post é uma revisão
+                if (wp_is_post_revision($post_id)) {
+                    return;
+                }
+
+                // Verificar se o post é novo
+                if (get_post_status($post_id) == 'auto-draft') {
+                    return;
+                }
+
+                $this->clean_cache();
+            });
 
             // Abrir e salvar opcoes
             add_action( 'admin_menu', [$this, 'admin_menu']);
