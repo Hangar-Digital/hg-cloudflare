@@ -42,6 +42,11 @@ class HG_Cloudflare {
                     return;
                 }
 
+                // Não limpar cache ao salvar menu
+                if (get_post_type($post_id) === 'nav_menu_item') {
+                    return;
+				}
+				
                 $this->clean_cache();
             });
 
@@ -51,6 +56,10 @@ class HG_Cloudflare {
 
             // Adicionar conteúdo ao rodapé do painel de administração
             add_action( 'admin_footer', [$this, 'show_message'] );
+
+			add_action('wp_update_nav_menu', function () {
+                $this->clean_cache();
+            });
         }
     }
 
