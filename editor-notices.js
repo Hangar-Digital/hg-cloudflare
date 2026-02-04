@@ -1,6 +1,19 @@
 (function(wp) {
+    // Verificar se o WordPress e suas dependências estão disponíveis
+    if (!wp || !wp.data || !wp.element) {
+        console.warn('HG CloudFlare: WordPress dependencies not available');
+        return;
+    }
+
     const { data, element } = wp;
-    const { useSelect, dispatch } = data;
+    
+    // Verificar se dispatch está disponível
+    if (!data.dispatch || !data.select || !data.subscribe) {
+        console.warn('HG CloudFlare: wp.data methods not available');
+        return;
+    }
+
+    const { dispatch } = data;
     const { useEffect } = element;
 
     let lastSaveTime = 0;
