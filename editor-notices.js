@@ -1,8 +1,9 @@
 (function(wp) {
-    const { data, dispatch } = wp.data;
+    const { data, element } = wp;
+    const { useSelect, dispatch } = data;
+    const { useEffect } = element;
 
-    let lastCheckedSaveTime = 0;
-    let wasPublishing = false;
+    let lastSaveTime = 0;
     let checkingStatus = false;
 
     // Função para verificar o status da limpeza do cache
@@ -50,32 +51,27 @@
     }
 
     // Monitorar salvamento de posts
-    let previousIsSaving = false;
-    
     const unsubscribe = data.subscribe(() => {
         const editor = data.select('core/editor');
         
         if (!editor) return;
 
-        const isSaving = editor.isSavingPost();
-        const isAutosaving = editor.isAutosavingPost();
-        const didSucceed = editor.didPostSaveRequestSucceed();
-        const saveTime = editor.getEditedPostAttribute('modified');
+        const isSavingPost = editor.isSavingPost();
+        const isAutosavingPost = editor.isAutosavingPost();
+        const currentTime = Date.now();
 
-        // Detectar quando terminou de salvar (estava salvando e agora não está mais)
-        if (previousIsSaving && !isSaving && !isAutosaving && didSucceed) {
-            // Verificar se já não checamos este salvamento
-            if (saveTime !== lastCheckedSaveTime) {
-                lastCheckedSaveTime = saveTime;
-                
-                // Aguardar para garantir que o backend processou
-                setTimeout(() => {
-                    checkCacheStatus();
-                }, 1500);
-            }
+        // Se acabou de salvar (não auto-save) e faz mais de 2 segundos desde o último salvamento
+        if (!isSavingPost && !isAutosavingPost && 
+            editor.didPostSaveRequestSucceed() && 
+            currentTime - lastSaveTime > 2000) {
+            
+            lastSaveTime = currentTime;
+            
+            // Aguardar um pouco para garantir que o backend processou
+            setTimeout(() => {
+                checkCacheStatus();
+            }, 1000);
         }
-
-        previousIsSaving = isSaving && !isAutosaving;
     });
 
     // Limpar quando sair
