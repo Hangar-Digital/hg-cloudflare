@@ -2,7 +2,7 @@
 /*
 Plugin Name: HG CloudFlare
 Description: Acesso rápido e fácil para limpar o cache do CloudFlare.
-Version: 2.0
+Version: 2.1
 Author: Hangar Digital
 Author URI: https://hangar.digital/
 */
