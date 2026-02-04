@@ -13,6 +13,9 @@ class HG_Cloudflare {
 
     function __construct() {
 
+        // Registrar hooks REST para todos os post types (funciona fora do is_admin)
+        add_action( 'init', [$this, 'register_rest_hooks'], 999 );
+
         if ( is_admin() ) {
             // Limpeza cache manualmente quando solicitado
             add_action( 'admin_init', function() {
@@ -61,6 +64,35 @@ class HG_Cloudflare {
                 $this->clean_cache();
             });
         }
+    }
+
+    function register_rest_hooks() {
+        // Obter todos os post types públicos
+        $post_types = get_post_types( array( 'public' => true ), 'names' );
+        
+        foreach ( $post_types as $post_type ) {
+            // Ignorar anexos e nav_menu_item
+            if ( in_array( $post_type, array( 'attachment', 'nav_menu_item' ) ) ) {
+                continue;
+            }
+            
+            // Registrar hook para cada post type
+            add_action( "rest_after_insert_{$post_type}", [$this, 'clean_cache_after_rest'], 10, 3 );
+        }
+    }
+
+    function clean_cache_after_rest( $post, $request, $creating ) {
+        // Não limpar cache ao criar um novo post (rascunho)
+        if ( $creating ) {
+            return;
+        }
+
+        // Não limpar cache para auto-saves
+        if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
+            return;
+        }
+
+        $this->clean_cache();
     }
 
     function add_adminbar( $wp_admin_bar ) {
