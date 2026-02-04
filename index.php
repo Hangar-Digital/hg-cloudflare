@@ -16,6 +16,12 @@ class HG_Cloudflare {
         // Registrar hooks REST para todos os post types (funciona fora do is_admin)
         add_action( 'init', [$this, 'register_rest_hooks'], 999 );
 
+        // Adicionar script para exibir mensagens no editor de blocos
+        add_action( 'enqueue_block_editor_assets', [$this, 'enqueue_block_editor_script'] );
+        
+        // Adicionar endpoint REST para verificar status da limpeza de cache
+        add_action( 'rest_api_init', [$this, 'register_rest_route'] );
+
         if ( is_admin() ) {
             // Limpeza cache manualmente quando solicitado
             add_action( 'admin_init', function() {
@@ -92,7 +98,48 @@ class HG_Cloudflare {
             return;
         }
 
-        $this->clean_cache();
+        $this->clean_cache( true );
+    }
+
+    function enqueue_block_editor_script() {
+        wp_enqueue_script(
+            'hg-cloudflare-editor',
+            plugin_dir_url( __FILE__ ) . 'editor-notices.js',
+            array( 'wp-data', 'wp-plugins', 'wp-edit-post', 'wp-element' ),
+            '2.0',
+            true
+        );
+
+        wp_localize_script(
+            'hg-cloudflare-editor',
+            'hgCloudflare',
+            array(
+                'restUrl' => rest_url( 'hg-cloudflare/v1/check-status' ),
+                'nonce' => wp_create_nonce( 'wp_rest' )
+            )
+        );
+    }
+
+    function register_rest_route() {
+        register_rest_route( 'hg-cloudflare/v1', '/check-status', array(
+            'methods' => 'GET',
+            'callback' => [$this, 'get_cache_status'],
+            'permission_callback' => function() {
+                return current_user_can( 'edit_posts' );
+            }
+        ));
+    }
+
+    function get_cache_status() {
+        $user_id = get_current_user_id();
+        $status = get_transient( 'hg_cloudflare_status_' . $user_id );
+        
+        if ( $status ) {
+            delete_transient( 'hg_cloudflare_status_' . $user_id );
+            return rest_ensure_response( $status );
+        }
+
+        return rest_ensure_response( array( 'status' => 'none' ) );
     }
 
     function add_adminbar( $wp_admin_bar ) {
@@ -113,14 +160,14 @@ class HG_Cloudflare {
         $wp_admin_bar->add_node( $args );
     }
 
-    function clean_cache() {
+    function clean_cache( $is_rest = false ) {
         $cloudflare_msg = new stdClass();
 
         $configs = $this->get_options();
 
         if (empty($configs) || $configs->zone_id_1 == '' || $configs->api_token_1 == '') {
             $cloudflare_msg->error = 'Os dados de API não foram configurados!';
-            $_SESSION['cloudflare_msg'] = $cloudflare_msg;
+            $this->store_message( $cloudflare_msg, $is_rest );
             return;
         }
 
@@ -143,7 +190,7 @@ class HG_Cloudflare {
         if ($res->success) {
             $cloudflare_msg->success = 'O cache foi limpo com sucesso!';
             error_log('[ CLOUDFLARE ] '.$cloudflare_msg->success);
-            $_SESSION['cloudflare_msg'] = $cloudflare_msg;
+            $this->store_message( $cloudflare_msg, $is_rest );
         
         } else {
             $msg = '';
@@ -153,6 +200,21 @@ class HG_Cloudflare {
 
             $cloudflare_msg->error = 'Houve um erro ao limpar o cache! Mensagem da API: '.trim($msg);
             error_log('[ CLOUDFLARE ] '.$cloudflare_msg->error);
+            $this->store_message( $cloudflare_msg, $is_rest );
+        }
+    }
+
+    function store_message( $cloudflare_msg, $is_rest = false ) {
+        if ( $is_rest ) {
+            // Para REST API, usar transient com ID do usuário
+            $user_id = get_current_user_id();
+            $status = array(
+                'status' => isset($cloudflare_msg->success) ? 'success' : 'error',
+                'message' => isset($cloudflare_msg->success) ? $cloudflare_msg->success : $cloudflare_msg->error
+            );
+            set_transient( 'hg_cloudflare_status_' . $user_id, $status, 30 );
+        } else {
+            // Para requisições normais, usar sessão
             $_SESSION['cloudflare_msg'] = $cloudflare_msg;
         }
     }
