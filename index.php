@@ -2,7 +2,7 @@
 /*
 Plugin Name: HG CloudFlare
 Description: Acesso rápido e fácil para limpar o cache do CloudFlare.
-Version: 2.3
+Version: 2.4
 Author: Hangar Digital
 Author URI: https://hangar.digital/
 */
@@ -11,7 +11,7 @@ require 'libraries/cripto.php';
 
 class HG_Cloudflare {
 
-    private $_version = '2.3';
+    private $_version = '2.4';
 
     function __construct() {
 

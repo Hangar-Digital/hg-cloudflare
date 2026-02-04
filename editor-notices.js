@@ -25,7 +25,7 @@
         
         checkingStatus = true;
 
-        fetch(hgCloudflare.restUrl, {
+        fetch(hgCloudflare.restUrl + '?v=' + Date.now(), {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
