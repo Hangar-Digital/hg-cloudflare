@@ -110,6 +110,7 @@ class HG_Cloudflare {
 
         if ($res->success) {
             $cloudflare_msg->success = 'O cache foi limpo com sucesso!';
+            error_log('[ CLOUDFLARE ] '.$cloudflare_msg->success);
             $_SESSION['cloudflare_msg'] = $cloudflare_msg;
         
         } else {
@@ -119,6 +120,7 @@ class HG_Cloudflare {
             }
 
             $cloudflare_msg->error = 'Houve um erro ao limpar o cache! Mensagem da API: '.trim($msg);
+            error_log('[ CLOUDFLARE ] '.$cloudflare_msg->error);
             $_SESSION['cloudflare_msg'] = $cloudflare_msg;
         }
     }
