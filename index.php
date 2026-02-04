@@ -2,7 +2,7 @@
 /*
 Plugin Name: HG CloudFlare
 Description: Acesso rápido e fácil para limpar o cache do CloudFlare.
-Version: 2.1
+Version: 2.2
 Author: Hangar Digital
 Author URI: https://hangar.digital/
 */
@@ -10,6 +10,8 @@ Author URI: https://hangar.digital/
 require 'libraries/cripto.php';
 
 class HG_Cloudflare {
+
+    private $_version = '2.2';
 
     function __construct() {
 
@@ -106,7 +108,7 @@ class HG_Cloudflare {
             'hg-cloudflare-editor',
             plugin_dir_url( __FILE__ ) . 'editor-notices.js',
             array( 'wp-data', 'wp-plugins', 'wp-edit-post', 'wp-element' ),
-            '2.0',
+            $this->_version,
             true
         );
 
@@ -208,11 +210,19 @@ class HG_Cloudflare {
         if ( $is_rest ) {
             // Para REST API, usar transient com ID do usuário
             $user_id = get_current_user_id();
+            
+            // Evitar sobrescrever transient se já existe um recente (evita duplicatas)
+            $existing = get_transient( 'hg_cloudflare_status_' . $user_id );
+            if ( $existing ) {
+                return;
+            }
+            
             $status = array(
                 'status' => isset($cloudflare_msg->success) ? 'success' : 'error',
-                'message' => isset($cloudflare_msg->success) ? $cloudflare_msg->success : $cloudflare_msg->error
+                'message' => isset($cloudflare_msg->success) ? $cloudflare_msg->success : $cloudflare_msg->error,
+                'timestamp' => time()
             );
-            set_transient( 'hg_cloudflare_status_' . $user_id, $status, 30 );
+            set_transient( 'hg_cloudflare_status_' . $user_id, $status, 10 );
         } else {
             // Para requisições normais, usar sessão
             $_SESSION['cloudflare_msg'] = $cloudflare_msg;
