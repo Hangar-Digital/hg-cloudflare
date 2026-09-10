@@ -27,6 +27,16 @@ class HG_Cloudflare {
             $this->clean_cache();
         });
 
+        // Limpar cache quando um anexo (imagem/mídia) for excluído ou editado
+        // (attachment não passa por trash; admin e REST chamam wp_delete_attachment()
+        // e wp_update_attachment_metadata() diretamente, então estes hooks cobrem ambos)
+        add_action( 'delete_attachment', function() {
+            $this->clean_cache();
+        });
+        add_action( 'edit_attachment', function() {
+            $this->clean_cache();
+        });
+
         // Adicionar script para exibir mensagens no editor de blocos
         add_action( 'enqueue_block_editor_assets', [$this, 'enqueue_block_editor_script'] );
         
