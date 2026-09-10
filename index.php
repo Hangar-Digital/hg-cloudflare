@@ -18,6 +18,15 @@ class HG_Cloudflare {
         // Registrar hooks REST para todos os post types (funciona fora do is_admin)
         add_action( 'init', [$this, 'register_rest_hooks'], 999 );
 
+        // Limpar cache quando um post for movido para lixeira ou restaurado
+        // (cobre admin e REST, pois ambos chamam wp_trash_post()/wp_untrash_post())
+        add_action( 'trashed_post', function() {
+            $this->clean_cache();
+        });
+        add_action( 'untrashed_post', function() {
+            $this->clean_cache();
+        });
+
         // Adicionar script para exibir mensagens no editor de blocos
         add_action( 'enqueue_block_editor_assets', [$this, 'enqueue_block_editor_script'] );
         
